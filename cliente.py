@@ -5,12 +5,9 @@ import os
 import sys
 
 def main():
-    # Configuración
-    LB_HOST = os.getenv('LB_HOST', '127.0.0.1')
-    LB_PORT = int(os.getenv('LB_PORT', '9000'))
     
     # Conectar al load balancer
-    ns = Pyro5.api.locate_ns(host=LB_HOST, port=LB_PORT)
+    ns = Pyro5.api.locate_ns()
     lb_uri = ns.lookup("load_balancer")
     lb = Pyro5.api.Proxy(lb_uri)
 

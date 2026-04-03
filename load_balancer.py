@@ -4,7 +4,7 @@ import Pyro5.api
 import uuid
 import threading
 import time
-from collections import defaultdict
+import collections
 import random 
 import sys
 class LoadBalancer:
@@ -16,10 +16,9 @@ class LoadBalancer:
         registros = ns.list()  # Devuelve un dict {nombre: uri}
         self.uris = [uri for nombre, uri in registros.items() if nombre.startswith("worker")]  
 
-    @Pyro5.api.expose
     def _elegir_worker(self):
-        len = len(self.uris)
-        numero = random.randint(1, len)  
+        total = len(self.uris)
+        numero = random.randint(0, total-1)  
         return self.uris[numero]
 
     @Pyro5.api.expose
@@ -46,13 +45,15 @@ class LoadBalancer:
 def main():
     ns = Pyro5.api.locate_ns()
     lb = LoadBalancer(ns)
-    daemon = Pyro5.api.Daemon(host="127.0.0.1", port=9000)
+    daemon = Pyro5.api.Daemon(host="127.0.0.1", port=0)
     uri = daemon.register(lb, "load_balancer")
-    
+    ns.register("load_balancer", uri)
     try:
+        print(f"Load Balancer ready")
         daemon.requestLoop()
     except KeyboardInterrupt:
         print("\n[LB] Deteniendo...")
+        daemon.close()
         sys.exit(0)
 
 
