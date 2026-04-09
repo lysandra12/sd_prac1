@@ -7,9 +7,9 @@ from numbered.Clientes import Cliente
 class TicketClient:
     def __init__(self):
 
-        self.credentials = pika.PlainCredentials('mi_usuario', 'mi_password')
+        self.credentials = pika.PlainCredentials('user', 'user')
         self.connection = pika.BlockingConnection(
-            pika.ConnectionParameters(host='localhost', port=5672, credentials=self.credentials)
+            pika.ConnectionParameters(host=10.0.1.8, port=5672, credentials=self.credentials)
         )
         self.channel = self.connection.channel()
         
