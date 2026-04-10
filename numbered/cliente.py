@@ -39,7 +39,8 @@ class TicketClient:
 # Ejemplo de uso
 if __name__ == "__main__":
     client = TicketClient()
-    
+    inicio = time.time()
+
     with open("benchmark_numbered_60000.txt", 'r') as archivo:
         for linea in archivo:
             linea = linea.strip()
@@ -48,6 +49,9 @@ if __name__ == "__main__":
             
             operacion, client_id, seat_id, request_id = linea.split()
             cliente = Cliente(client_id, seat_id, request_id, "BUY")
-            cliente.send_buy_request(seat_id, client_id, request_id)
+            client.send_buy_request(seat_id, client_id, request_id)
 
+    fin = time.time()
+    tiempo_total = fin - inicio
+    print(f"[Cliente] Tiempo total: {tiempo_total} segundos")
     client.connection.close()
