@@ -3,7 +3,7 @@
 import Pyro5.api
 import os
 import sys
-from Clientes import Cliente
+from indirect.unnumbered.Clientes import Cliente
 import time
 
 def leer_archivo_linea_por_linea(nombre_archivo):
@@ -19,7 +19,7 @@ def leer_archivo_linea_por_linea(nombre_archivo):
 
             # Intentar parsear la línea
             partes = linea.split()
-            yield Cliente(partes[1], partes[2], partes[0])
+            yield partes[1], partes[2], partes[0]
 
 
 def main():
@@ -32,7 +32,7 @@ def main():
     generador = leer_archivo_linea_por_linea("benchmark_unnumbered_20000.txt")  # Crear generador >
 
     inicio = time.time()
-    for cliente in generador:  # Iterar sobre el generador
+    for i in generador:  # Iterar sobre el generador
         try:
             exito, resultado = lb.generar_ticket()
             print(f"Cliente, Compra con exito: {resultado}")
@@ -46,5 +46,6 @@ def main():
     tiempo_total = fin - inicio
     print(f"Tiempo total: {tiempo_total:.2f} segundos")
 
+    generador = leer_archivo_linea_por_linea("benchmark_numbered_20000.txt")  # Crear generador >
 if __name__ == "__main__":
     main()

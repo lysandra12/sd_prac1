@@ -2,7 +2,7 @@ import json
 import time
 import pika
 
-from numbered.Clientes import Cliente 
+from direct.numbered.Clientes import Cliente 
 
 class TicketClient:
     def __init__(self):

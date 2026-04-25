@@ -43,7 +43,7 @@ class LoadBalancer:
             print(f"Enviando solicitud a {worker_uri}")
 
             with Pyro5.api.Proxy(worker_uri) as worker:
-                numero_ticket = worker.ticket()
+                numero_ticket = worker.ticket_numbered()
                 return True, numero_ticket
 
         except Exception as e:
