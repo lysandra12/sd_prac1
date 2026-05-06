@@ -1,77 +1,101 @@
 #!/usr/bin/env python3
-import socket
 import Pyro5.api
-import uuid
 import threading
-import time
-import collections
-import random
 import sys
+import os
 
+ns_host = os.getenv('PYRO_NS_HOST', 'localhost')
+lb_host = os.getenv('LB_HOST',      'localhost')
+
+
+@Pyro5.api.expose
 class LoadBalancer:
     def __init__(self, ns):
-        self.limite = 20000
-        self.contador = 0
-        self.contador_lock = threading.Lock()
+        self.lock           = threading.Lock()
         self.current_worker = 0
-        registros = ns.list()  # devuelve {nombre: uri}
+        self._ns            = ns
+        registros = ns.list()
         self.uris = [
             uri for nombre, uri in registros.items()
-            if nombre.startswith("worker")
+            if nombre.startswith("worker_")
         ]
+        if not self.uris:
+            raise RuntimeError("No se encontraron workers. Arrancarlos antes que el LB.")
+        print(f"LoadBalancer: {len(self.uris)} workers registrados")
 
     def _elegir_worker(self):
-        total = len(self.uris)
-        if total == 0:
-            raise RuntimeError("No hay workers disponibles")
+        with self.lock:
+            uri = self.uris[self.current_worker]
+            self.current_worker = (self.current_worker + 1) % len(self.uris)
+        return uri
 
-        print(f"Eligiendo worker entre {total} disponibles")
-        worker = self.uris[self.current_worker]
-        self.current_worker = (self.current_worker + 1) % total
-        return self.uris[self.current_worker - 1]
-
-    @Pyro5.api.expose
-    def generar_ticket(self):
+    def generar_ticket_numbered(self, seat_id, client_id):
         try:
-            worker_uri = self._elegir_worker()
-
-            with self.contador_lock:
-                if self.contador >= self.limite:
-                    return False, "Límite de tickets alcanzado"
-                self.contador += 1
-
-            print(f"Enviando solicitud a {worker_uri}")
-
-            with Pyro5.api.Proxy(worker_uri) as worker:
-                numero_ticket = worker.ticket_numbered()
-                return True, numero_ticket
-
+            with Pyro5.api.Proxy(self._elegir_worker()) as w:
+                return w.ticket_numbered(seat_id, client_id)
         except Exception as e:
-            return False, f"Error al generar ticket: {e}"
+            return False, f"Error: {e}"
 
-    @Pyro5.api.expose
+    def generar_ticket_unnumbered(self, client_id):
+        try:
+            with Pyro5.api.Proxy(self._elegir_worker()) as w:
+                return w.ticket_unnumbered(client_id)
+        except Exception as e:
+            return False, f"Error: {e}"
+
+    def get_all_stats(self):
+        """
+        Consulta get_stats() en cada worker y devuelve un resumen agregado.
+        Llamar desde el cliente al terminar el benchmark.
+        """
+        stats_list   = []
+        total_ops    = 0
+        total_ok     = 0
+        total_fail   = 0
+        max_elapsed  = 0.0
+
+        for uri in self.uris:
+            try:
+                with Pyro5.api.Proxy(uri) as w:
+                    s = w.get_stats()
+                stats_list.append(s)
+                total_ops   += s["total"]
+                total_ok    += s["success"]
+                total_fail  += s["fail"]
+                if s["elapsed_s"] > max_elapsed:
+                    max_elapsed = s["elapsed_s"]
+            except Exception as e:
+                stats_list.append({"worker_id": "?", "error": str(e)})
+
+        aggregate_throughput = total_ops / max_elapsed if max_elapsed > 0 else 0.0
+
+        return {
+            "workers":              stats_list,
+            "aggregate": {
+                "total_ops":        total_ops,
+                "total_success":    total_ok,
+                "total_fail":       total_fail,
+                "wall_time_s":      round(max_elapsed, 3),
+                "throughput_ops_s": round(aggregate_throughput, 2),
+            }
+        }
+
     def get_estado(self):
-        with self.worker_lock:
-            return self.contador, len(self.uris)
+        return len(self.uris)
 
-    @Pyro5.api.expose
-    def reset(self):
-        with self.worker_lock:
-            self.contador = 0
 
 def main():
-    ns = Pyro5.api.locate_ns("10.0.1.74", port=9090)
-    lb = LoadBalancer(ns)
-    ip = socket.gethostbyname(socket.gethostname())
-    daemon = Pyro5.api.Daemon(host="10.0.1.67", port=9099)
-    uri = daemon.register(lb, "load_balancer")
+    ns     = Pyro5.api.locate_ns(ns_host, port=9090)
+    lb     = LoadBalancer(ns)
+    daemon = Pyro5.api.Daemon(host=lb_host, port=9099)
+    uri    = daemon.register(lb, "load_balancer")
     ns.register("load_balancer", uri)
 
+    print(f"Load Balancer listo | uri={uri}")
     try:
-        print(f"Load Balancer ready")
         daemon.requestLoop()
     except KeyboardInterrupt:
-        print("\n[LB] Deteniendo...")
+        print("\nLoad Balancer: Deteniendo...")
         daemon.close()
         sys.exit(0)
 
