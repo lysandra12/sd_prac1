@@ -16,6 +16,37 @@ output "ips_publicas" {
   )
 }
 
+output "siguiente_paso" {
+  description = "Instrucciones post-deploy"
+  value = <<-MSG
+
+    ============================================================
+     DESPLIEGUE COMPLETADO
+    ============================================================
+
+     Enfoque DIRECTO (Pyro5) — completamente automatico:
+       Workers y Load Balancer ya estan corriendo.
+       Solo entra al cliente y ejecuta:
+
+         ssh -i sd-key.pem ec2-user@${aws_instance.client.public_ip}
+         bash ~/benchmark.sh direct unnumbered
+         bash ~/benchmark.sh direct numbered
+
+     Enfoque INDIRECTO (RabbitMQ):
+       1. Arranca workers en cada instancia:
+    %{for i, w in aws_instance.worker~}
+          ssh -i sd-key.pem ec2-user@${w.public_ip} 'bash ~/start_indirect.sh unnumbered 2'
+    %{endfor~}
+       2. Luego en el cliente:
+         ssh -i sd-key.pem ec2-user@${aws_instance.client.public_ip}
+         bash ~/benchmark.sh indirect unnumbered
+
+     O deja que benchmark.sh te guie — te da las instrucciones al ejecutarlo.
+
+    ============================================================
+  MSG
+}
+
 output "ips_privadas" {
   description = "IPs privadas (usadas en las variables de entorno)"
   value = merge(
