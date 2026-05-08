@@ -6,7 +6,6 @@ import signal
 import time
 import redis
 import pika
-import multiprocessing
 
 TOTAL_TICKETS = 20000   # limite unnumbered
 TOTAL_SEATS   = 60000   # limite numbered
@@ -35,7 +34,8 @@ def try_buy_ticket(redis_client, client_id):
     return False, f"No quedan tickets (solicitado por {client_id})"
 
 
-def run_worker(worker_id, modo, stats_queue):
+def run(modo):
+    import argparse
     success_count = 0
     fail_count    = 0
     start_time    = None
@@ -44,9 +44,9 @@ def run_worker(worker_id, modo, stats_queue):
     redis_client = redis.Redis(host=redis_host, port=redis_port, decode_responses=True)
     try:
         redis_client.ping()
-        print(f"Worker {worker_id}: Redis OK")
+        print(f"Worker: Redis OK ({redis_host}:{redis_port})")
     except redis.exceptions.ConnectionError:
-        print(f"Worker {worker_id}: No se pudo conectar a Redis en {redis_host}:{redis_port}")
+        print(f"Worker: No se pudo conectar a Redis en {redis_host}:{redis_port}")
         sys.exit(1)
 
     credentials = pika.PlainCredentials('user', 'user')
@@ -66,13 +66,9 @@ def run_worker(worker_id, modo, stats_queue):
                 start_time = now
 
             if modo == 'numbered':
-                success, message = try_buy_seat(
-                    redis_client, msg["seat_id"], msg["client_id"]
-                )
+                success, message = try_buy_seat(redis_client, msg["seat_id"], msg["client_id"])
             else:
-                success, message = try_buy_ticket(
-                    redis_client, msg["client_id"]
-                )
+                success, message = try_buy_ticket(redis_client, msg["client_id"])
 
             last_time = time.time()
             if success:
@@ -80,22 +76,46 @@ def run_worker(worker_id, modo, stats_queue):
             else:
                 fail_count += 1
 
-            print(f"[Worker {worker_id}] {'OK' if success else 'KO'} {message}")
+            print(f"[Worker] {'OK' if success else 'KO'} {message}")
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
         except json.JSONDecodeError as e:
-            print(f"[Worker {worker_id}] Error JSON: {e}")
+            print(f"[Worker] Error JSON: {e}")
             ch.basic_ack(delivery_tag=method.delivery_tag)
         except redis.ConnectionError as e:
-            print(f"[Worker {worker_id}] Redis no disponible: {e}")
+            print(f"[Worker] Redis no disponible: {e}")
             ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
         except Exception as e:
-            print(f"[Worker {worker_id}] Error inesperado: {e}")
+            print(f"[Worker] Error inesperado: {e}")
             ch.basic_ack(delivery_tag=method.delivery_tag)
 
-    signal.signal(signal.SIGINT, signal.SIG_IGN)
+    def print_stats():
+        elapsed    = (last_time - start_time) if start_time and last_time else 0.0
+        total_ops  = success_count + fail_count
+        throughput = total_ops / elapsed if elapsed > 0 else 0.0
+        print(
+            f"\n{'='*50}\n"
+            f"RESUMEN WORKER ({modo})\n"
+            f"{'='*50}\n"
+            f"  Exitos    : {success_count}\n"
+            f"  Fallos    : {fail_count}\n"
+            f"  Total ops : {total_ops}\n"
+            f"  Tiempo    : {elapsed:.3f} s\n"
+            f"  Throughput: {throughput:.2f} ops/s\n"
+            f"{'='*50}"
+        )
 
-    print(f"Worker {worker_id} INICIADO ({modo})")
+    def signal_handler(sig, frame):
+        print("\nDeteniendo worker...")
+        try:
+            channel.stop_consuming()
+        except Exception:
+            pass
+
+    signal.signal(signal.SIGINT,  signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
+    print(f"Worker INICIADO | modo={modo} | RabbitMQ={rabbit_host}")
     try:
         channel.basic_consume(queue="ticket_requests", on_message_callback=callback)
         channel.start_consuming()
@@ -113,80 +133,13 @@ def run_worker(worker_id, modo, stats_queue):
         except Exception:
             pass
         redis_client.close()
-
-        elapsed    = (last_time - start_time) if start_time and last_time else 0.0
-        total_ops  = success_count + fail_count
-        throughput = total_ops / elapsed if elapsed > 0 else 0.0
-
-        stats = {
-            "worker_id":      worker_id,
-            "success":        success_count,
-            "fail":           fail_count,
-            "total":          total_ops,
-            "elapsed_s":      round(elapsed, 3),
-            "throughput_ops": round(throughput, 2),
-        }
-        stats_queue.put(stats)
-        print(
-            f"\n=== Worker {worker_id} ===\n"
-            f"  Exitos    : {success_count}\n"
-            f"  Fallos    : {fail_count}\n"
-            f"  Total ops : {total_ops}\n"
-            f"  Tiempo    : {elapsed:.3f} s\n"
-            f"  Throughput: {throughput:.2f} ops/s"
-        )
-
-
-def imprimir_resumen(modo, stats_list):
-    if not stats_list:
-        return
-    total_ok   = sum(s["success"]   for s in stats_list)
-    total_fail = sum(s["fail"]      for s in stats_list)
-    total_ops  = sum(s["total"]     for s in stats_list)
-    max_time   = max(s["elapsed_s"] for s in stats_list)
-    throughput = total_ops / max_time if max_time > 0 else 0.0
-
-    print(f"\n{'='*50}")
-    print(f"RESUMEN AGREGADO — {modo} (indirecto)")
-    print(f"{'='*50}")
-    print(f"  Workers activos : {len(stats_list)}")
-    print(f"  Total exitos    : {total_ok}")
-    print(f"  Total fallos    : {total_fail}")
-    print(f"  Total ops       : {total_ops}")
-    print(f"  Tiempo (max w.) : {max_time:.3f} s")
-    print(f"  Throughput real : {throughput:.2f} ops/s")
-    print(f"{'='*50}")
+        print_stats()
 
 
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description='Worker RabbitMQ')
-    parser.add_argument('--modo', choices=['numbered', 'unnumbered'], required=True)
-    parser.add_argument('--workers', type=int, default=1,
-                        help='Numero de procesos worker a lanzar')
+    parser.add_argument('--modo', choices=['numbered', 'unnumbered'], required=True,
+                        help='Tipo de benchmark')
     args = parser.parse_args()
-
-    stats_queue = multiprocessing.Queue()
-    processes   = []
-
-    try:
-        for i in range(args.workers):
-            p = multiprocessing.Process(
-                target=run_worker, args=(i + 1, args.modo, stats_queue)
-            )
-            p.start()
-            processes.append(p)
-        for p in processes:
-            p.join()
-    except KeyboardInterrupt:
-        print("\nCerrando workers...")
-        for p in processes:
-            if p.is_alive():
-                p.terminate()
-        for p in processes:
-            p.join()
-
-    stats_list = []
-    while not stats_queue.empty():
-        stats_list.append(stats_queue.get())
-    imprimir_resumen(args.modo, stats_list)
+    run(args.modo)

@@ -87,14 +87,13 @@ resource "null_resource" "worker_setup" {
   provisioner "file" {
     content = <<-SCRIPT
       #!/bin/bash
-      # Uso: bash ~/start_indirect.sh <numbered|unnumbered> [num_workers]
-      # Ejemplo: bash ~/start_indirect.sh unnumbered 2
+      # Uso: bash ~/start_indirect.sh <numbered|unnumbered>
+      # Ejemplo: bash ~/start_indirect.sh unnumbered
       source ~/sd_env.sh
       MODO=$${1:-unnumbered}
-      NWORKERS=$${2:-2}
-      echo "Arrancando $NWORKERS workers en modo $MODO..."
+      echo "Arrancando worker en modo $MODO..."
       cd ~/indirect
-      python3 worker.py --modo $MODO --workers $NWORKERS
+      python3 worker.py --modo $MODO
     SCRIPT
     destination = "/home/ec2-user/start_indirect.sh"
   }
@@ -267,10 +266,10 @@ resource "null_resource" "client_setup" {
         echo "INDIRECTO: los workers deben estar corriendo en las instancias worker."
         echo "Si no los has arrancado, abre otra terminal y en cada worker ejecuta:"
         %{for i, w in aws_instance.worker~}
-        echo "  ssh -i sd-key.pem ec2-user@${w.public_ip} 'bash ~/start_indirect.sh $MODO 2'"
+        echo "  ssh -i sd-key.pem ec2-user@${w.public_ip} 'bash ~/start_indirect.sh $MODO'"
         %{endfor~}
         echo ""
-        read -p "Pulsa ENTER cuando los workers estén listos..."
+        read -p "Pulsa ENTER cuando los workers esten listos..."
         cd ~/indirect
         python3 cliente.py --modo $MODO
       fi

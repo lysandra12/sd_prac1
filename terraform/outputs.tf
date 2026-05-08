@@ -35,7 +35,7 @@ output "siguiente_paso" {
      Enfoque INDIRECTO (RabbitMQ):
        1. Arranca workers en cada instancia:
     %{for i, w in aws_instance.worker~}
-          ssh -i sd-key.pem ec2-user@${w.public_ip} 'bash ~/start_indirect.sh unnumbered 2'
+          ssh -i sd-key.pem ec2-user@${w.public_ip} 'bash ~/start_indirect.sh unnumbered'
     %{endfor~}
        2. Luego en el cliente:
          ssh -i sd-key.pem ec2-user@${aws_instance.client.public_ip}
