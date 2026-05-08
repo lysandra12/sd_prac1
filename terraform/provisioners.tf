@@ -83,17 +83,16 @@ resource "null_resource" "worker_setup" {
     destination = "/tmp/sd-worker-direct.service"
   }
 
-  # 5. Script helper para el modo INDIRECTO (el usuario solo corre este script)
+  # 5. Script helper para el modo INDIRECTO
   provisioner "file" {
     content = <<-SCRIPT
       #!/bin/bash
-      # Uso: bash ~/start_indirect.sh <numbered|unnumbered>
-      # Ejemplo: bash ~/start_indirect.sh unnumbered
+      # Arranca el worker indirecto (escucha ambas colas automaticamente)
+      # Uso: bash ~/start_indirect.sh
       source ~/sd_env.sh
-      MODO=$${1:-unnumbered}
-      echo "Arrancando worker en modo $MODO..."
+      echo "Arrancando worker indirecto..."
       cd ~/indirect
-      python3 worker.py --modo $MODO
+      python3 worker.py
     SCRIPT
     destination = "/home/ec2-user/start_indirect.sh"
   }
@@ -266,7 +265,7 @@ resource "null_resource" "client_setup" {
         echo "INDIRECTO: los workers deben estar corriendo en las instancias worker."
         echo "Si no los has arrancado, abre otra terminal y en cada worker ejecuta:"
         %{for i, w in aws_instance.worker~}
-        echo "  ssh -i sd-key.pem ec2-user@${w.public_ip} 'bash ~/start_indirect.sh $MODO'"
+        echo "  ssh -i sd-key.pem ec2-user@${w.public_ip} 'bash ~/start_indirect.sh'"
         %{endfor~}
         echo ""
         read -p "Pulsa ENTER cuando los workers esten listos..."

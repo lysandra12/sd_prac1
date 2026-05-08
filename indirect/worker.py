@@ -7,16 +7,21 @@ import time
 import redis
 import pika
 
-TOTAL_TICKETS = 20000   # limite unnumbered
-TOTAL_SEATS   = 60000   # limite numbered
+TOTAL_TICKETS = 20000
+TOTAL_SEATS   = 60000
 
 redis_host  = os.getenv('REDIS_HOST',  'localhost')
 redis_port  = int(os.getenv('REDIS_PORT', '6379'))
 rabbit_host = os.getenv('RABBIT_HOST', 'localhost')
 
+QUEUE_NUMBERED   = "ticket_numbered"
+QUEUE_UNNUMBERED = "ticket_unnumbered"
 
-def try_buy_seat(redis_client, seat_id, client_id):
-    """Numbered: reserva un asiento especifico de forma atomica."""
+
+# ─── Lógica de negocio ────────────────────────────────────────────────────────
+
+def buy_numbered(redis_client, seat_id, client_id):
+    """Reserva un asiento especifico de forma atomica."""
     was_free = redis_client.setnx(f"seat:{seat_id}", client_id)
     if was_free:
         sold = redis_client.incr("total_sold")
@@ -25,8 +30,8 @@ def try_buy_seat(redis_client, seat_id, client_id):
     return False, f"Asiento {seat_id} ya ocupado por {owner}"
 
 
-def try_buy_ticket(redis_client, client_id):
-    """Unnumbered: asigna el siguiente ticket disponible de forma atomica."""
+def buy_unnumbered(redis_client, client_id):
+    """Asigna el siguiente ticket disponible de forma atomica."""
     sold = redis_client.incr("total_sold")
     if sold <= TOTAL_TICKETS:
         return True, f"Ticket #{sold} vendido a {client_id}"
@@ -34,90 +39,108 @@ def try_buy_ticket(redis_client, client_id):
     return False, f"No quedan tickets (solicitado por {client_id})"
 
 
-def run(modo):
-    import argparse
-    success_count = 0
-    fail_count    = 0
-    start_time    = None
-    last_time     = None
+# ─── Worker ───────────────────────────────────────────────────────────────────
 
-    redis_client = redis.Redis(host=redis_host, port=redis_port, decode_responses=True)
-    try:
-        redis_client.ping()
-        print(f"Worker: Redis OK ({redis_host}:{redis_port})")
-    except redis.exceptions.ConnectionError:
-        print(f"Worker: No se pudo conectar a Redis en {redis_host}:{redis_port}")
-        sys.exit(1)
+class Stats:
+    def __init__(self, name):
+        self.name    = name
+        self.success = 0
+        self.fail    = 0
+        self.t0      = None
+        self.t1      = None
 
-    credentials = pika.PlainCredentials('user', 'user')
-    connection  = pika.BlockingConnection(
-        pika.ConnectionParameters(host=rabbit_host, port=5672, credentials=credentials)
-    )
-    channel = connection.channel()
-    channel.queue_declare(queue="ticket_requests", durable=True)
-    channel.basic_qos(prefetch_count=1)
+    def record(self, ok):
+        now = time.time()
+        if self.t0 is None:
+            self.t0 = now
+        self.t1 = now
+        if ok:
+            self.success += 1
+        else:
+            self.fail += 1
 
-    def callback(ch, method, properties, body):
-        nonlocal success_count, fail_count, start_time, last_time
-        try:
-            msg = json.loads(body)
-            now = time.time()
-            if start_time is None:
-                start_time = now
-
-            if modo == 'numbered':
-                success, message = try_buy_seat(redis_client, msg["seat_id"], msg["client_id"])
-            else:
-                success, message = try_buy_ticket(redis_client, msg["client_id"])
-
-            last_time = time.time()
-            if success:
-                success_count += 1
-            else:
-                fail_count += 1
-
-            print(f"[Worker] {'OK' if success else 'KO'} {message}")
-            ch.basic_ack(delivery_tag=method.delivery_tag)
-
-        except json.JSONDecodeError as e:
-            print(f"[Worker] Error JSON: {e}")
-            ch.basic_ack(delivery_tag=method.delivery_tag)
-        except redis.ConnectionError as e:
-            print(f"[Worker] Redis no disponible: {e}")
-            ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
-        except Exception as e:
-            print(f"[Worker] Error inesperado: {e}")
-            ch.basic_ack(delivery_tag=method.delivery_tag)
-
-    def print_stats():
-        elapsed    = (last_time - start_time) if start_time and last_time else 0.0
-        total_ops  = success_count + fail_count
-        throughput = total_ops / elapsed if elapsed > 0 else 0.0
+    def print(self):
+        elapsed    = (self.t1 - self.t0) if self.t0 and self.t1 else 0.0
+        total      = self.success + self.fail
+        throughput = total / elapsed if elapsed > 0 else 0.0
         print(
             f"\n{'='*50}\n"
-            f"RESUMEN WORKER ({modo})\n"
+            f"RESUMEN WORKER — cola: {self.name}\n"
             f"{'='*50}\n"
-            f"  Exitos    : {success_count}\n"
-            f"  Fallos    : {fail_count}\n"
-            f"  Total ops : {total_ops}\n"
+            f"  Exitos    : {self.success}\n"
+            f"  Fallos    : {self.fail}\n"
+            f"  Total ops : {total}\n"
             f"  Tiempo    : {elapsed:.3f} s\n"
             f"  Throughput: {throughput:.2f} ops/s\n"
             f"{'='*50}"
         )
 
-    def signal_handler(sig, frame):
+
+def main():
+    rc = redis.Redis(host=redis_host, port=redis_port, decode_responses=True)
+    try:
+        rc.ping()
+        print(f"Worker: Redis OK ({redis_host}:{redis_port})")
+    except redis.exceptions.ConnectionError:
+        print(f"Worker: no se pudo conectar a Redis en {redis_host}:{redis_port}")
+        sys.exit(1)
+
+    credentials = pika.PlainCredentials('user', 'user')
+    conn    = pika.BlockingConnection(
+        pika.ConnectionParameters(host=rabbit_host, port=5672, credentials=credentials)
+    )
+    channel = conn.channel()
+
+    channel.queue_declare(queue=QUEUE_NUMBERED,   durable=True)
+    channel.queue_declare(queue=QUEUE_UNNUMBERED, durable=True)
+    channel.basic_qos(prefetch_count=1)
+
+    stats_n  = Stats(QUEUE_NUMBERED)
+    stats_un = Stats(QUEUE_UNNUMBERED)
+
+    # ── callback para cola numbered ──────────────────────────────────────────
+    def on_numbered(ch, method, props, body):
+        try:
+            msg              = json.loads(body)
+            ok, msg_text     = buy_numbered(rc, msg["seat_id"], msg["client_id"])
+            stats_n.record(ok)
+            print(f"[numbered] {'OK' if ok else 'KO'} {msg_text}")
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+        except redis.ConnectionError:
+            ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
+        except Exception as e:
+            print(f"[numbered] Error: {e}")
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+
+    # ── callback para cola unnumbered ────────────────────────────────────────
+    def on_unnumbered(ch, method, props, body):
+        try:
+            msg              = json.loads(body)
+            ok, msg_text     = buy_unnumbered(rc, msg["client_id"])
+            stats_un.record(ok)
+            print(f"[unnumbered] {'OK' if ok else 'KO'} {msg_text}")
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+        except redis.ConnectionError:
+            ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
+        except Exception as e:
+            print(f"[unnumbered] Error: {e}")
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+
+    channel.basic_consume(queue=QUEUE_NUMBERED,   on_message_callback=on_numbered)
+    channel.basic_consume(queue=QUEUE_UNNUMBERED, on_message_callback=on_unnumbered)
+
+    def on_stop(sig, frame):
         print("\nDeteniendo worker...")
         try:
             channel.stop_consuming()
         except Exception:
             pass
 
-    signal.signal(signal.SIGINT,  signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT,  on_stop)
+    signal.signal(signal.SIGTERM, on_stop)
 
-    print(f"Worker INICIADO | modo={modo} | RabbitMQ={rabbit_host}")
+    print(f"Worker listo | escuchando '{QUEUE_NUMBERED}' y '{QUEUE_UNNUMBERED}'")
     try:
-        channel.basic_consume(queue="ticket_requests", on_message_callback=callback)
         channel.start_consuming()
     except Exception:
         pass
@@ -128,18 +151,14 @@ def run(modo):
         except Exception:
             pass
         try:
-            if connection.is_open:
-                connection.close()
+            if conn.is_open:
+                conn.close()
         except Exception:
             pass
-        redis_client.close()
-        print_stats()
+        rc.close()
+        stats_n.print()
+        stats_un.print()
 
 
 if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser(description='Worker RabbitMQ')
-    parser.add_argument('--modo', choices=['numbered', 'unnumbered'], required=True,
-                        help='Tipo de benchmark')
-    args = parser.parse_args()
-    run(args.modo)
+    main()
