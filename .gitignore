@@ -1,0 +1,14 @@
+# Clave SSH generada por Terraform
+sd-key.pem
+
+# Archivos generados por Terraform al hacer apply
+env.sh
+upload.sh
+ssh.sh
+
+# Estado de Terraform (contiene datos sensibles)
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+terraform/*.tfplan
