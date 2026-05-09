@@ -33,37 +33,52 @@ locals {
 }
 
 resource "aws_instance" "redis" {
-  ami = data.aws_ami.amzn2.id; instance_type = var.instance_type
-  subnet_id = aws_subnet.public.id; vpc_security_group_ids = [aws_security_group.sd.id]
-  key_name = aws_key_pair.sd.key_name; user_data = local.redis_setup
+  ami                    = data.aws_ami.amzn2.id
+  instance_type          = var.instance_type
+  subnet_id              = aws_subnet.public.id
+  vpc_security_group_ids = [aws_security_group.sd.id]
+  key_name               = aws_key_pair.sd.key_name
+  user_data              = local.redis_setup
   tags = { Name = "direct-redis" }
 }
 
 resource "aws_instance" "nameserver" {
-  ami = data.aws_ami.amzn2.id; instance_type = var.instance_type
-  subnet_id = aws_subnet.public.id; vpc_security_group_ids = [aws_security_group.sd.id]
-  key_name = aws_key_pair.sd.key_name; user_data = local.nameserver_setup
+  ami                    = data.aws_ami.amzn2.id
+  instance_type          = var.instance_type
+  subnet_id              = aws_subnet.public.id
+  vpc_security_group_ids = [aws_security_group.sd.id]
+  key_name               = aws_key_pair.sd.key_name
+  user_data              = local.nameserver_setup
   tags = { Name = "direct-nameserver" }
 }
 
 resource "aws_instance" "loadbalancer" {
-  ami = data.aws_ami.amzn2.id; instance_type = var.instance_type
-  subnet_id = aws_subnet.public.id; vpc_security_group_ids = [aws_security_group.sd.id]
-  key_name = aws_key_pair.sd.key_name; user_data = local.python_deps
+  ami                    = data.aws_ami.amzn2.id
+  instance_type          = var.instance_type
+  subnet_id              = aws_subnet.public.id
+  vpc_security_group_ids = [aws_security_group.sd.id]
+  key_name               = aws_key_pair.sd.key_name
+  user_data              = local.python_deps
   tags = { Name = "direct-loadbalancer" }
 }
 
 resource "aws_instance" "worker" {
-  count = var.num_workers
-  ami = data.aws_ami.amzn2.id; instance_type = var.instance_type
-  subnet_id = aws_subnet.public.id; vpc_security_group_ids = [aws_security_group.sd.id]
-  key_name = aws_key_pair.sd.key_name; user_data = local.python_deps
+  count                  = var.num_workers
+  ami                    = data.aws_ami.amzn2.id
+  instance_type          = var.instance_type
+  subnet_id              = aws_subnet.public.id
+  vpc_security_group_ids = [aws_security_group.sd.id]
+  key_name               = aws_key_pair.sd.key_name
+  user_data              = local.python_deps
   tags = { Name = "direct-worker${count.index + 1}" }
 }
 
 resource "aws_instance" "client" {
-  ami = data.aws_ami.amzn2.id; instance_type = var.instance_type
-  subnet_id = aws_subnet.public.id; vpc_security_group_ids = [aws_security_group.sd.id]
-  key_name = aws_key_pair.sd.key_name; user_data = local.python_deps
+  ami                    = data.aws_ami.amzn2.id
+  instance_type          = var.instance_type
+  subnet_id              = aws_subnet.public.id
+  vpc_security_group_ids = [aws_security_group.sd.id]
+  key_name               = aws_key_pair.sd.key_name
+  user_data              = local.python_deps
   tags = { Name = "direct-client" }
 }

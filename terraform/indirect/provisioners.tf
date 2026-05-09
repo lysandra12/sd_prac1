@@ -1,13 +1,13 @@
-# ── Workers ───────────────────────────────────────────────────────────────────
 resource "null_resource" "worker_setup" {
   count      = var.num_workers
   depends_on = [aws_instance.worker, aws_instance.redis, aws_instance.rabbitmq]
 
   connection {
-    type = "ssh"; user = "ec2-user"
+    type        = "ssh"
+    user        = "ec2-user"
     private_key = tls_private_key.sd.private_key_pem
-    host    = aws_instance.worker[count.index].public_ip
-    timeout = "20m"
+    host        = aws_instance.worker[count.index].public_ip
+    timeout     = "20m"
   }
 
   provisioner "remote-exec" {
@@ -30,7 +30,6 @@ resource "null_resource" "worker_setup" {
     destination = "/home/ec2-user/sd_env.sh"
   }
 
-  # Worker arranca automaticamente como servicio (escucha ambas colas)
   provisioner "remote-exec" {
     inline = [
       "PYTHON=$(which python3)",
@@ -56,15 +55,15 @@ resource "null_resource" "worker_setup" {
   }
 }
 
-# ── Client ────────────────────────────────────────────────────────────────────
 resource "null_resource" "client_setup" {
   depends_on = [null_resource.worker_setup]
 
   connection {
-    type = "ssh"; user = "ec2-user"
+    type        = "ssh"
+    user        = "ec2-user"
     private_key = tls_private_key.sd.private_key_pem
-    host    = aws_instance.client.public_ip
-    timeout = "20m"
+    host        = aws_instance.client.public_ip
+    timeout     = "20m"
   }
 
   provisioner "remote-exec" {

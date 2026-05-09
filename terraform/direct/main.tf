@@ -1,20 +1,24 @@
 terraform {
   required_providers {
-    aws   = { source = "hashicorp/aws",       version = "~> 5.0" }
-    tls   = { source = "hashicorp/tls",       version = "~> 4.0" }
-    local = { source = "hashicorp/local",     version = "~> 2.0" }
+    aws   = { source = "hashicorp/aws",   version = "~> 5.0" }
+    tls   = { source = "hashicorp/tls",   version = "~> 4.0" }
+    local = { source = "hashicorp/local", version = "~> 2.0" }
   }
 }
 
-provider "aws" { region = var.aws_region }
+provider "aws" {
+  region = var.aws_region
+}
 
 data "aws_ami" "amzn2" {
   most_recent = true
   owners      = ["amazon"]
-  filter { name = "name"; values = ["amzn2-ami-hvm-*-x86_64-gp2"] }
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+  }
 }
 
-# ── Red ──────────────────────────────────────────────────────────────────────
 resource "aws_vpc" "main" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_hostnames = true
@@ -36,7 +40,10 @@ resource "aws_internet_gateway" "igw" {
 
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
-  route { cidr_block = "0.0.0.0/0"; gateway_id = aws_internet_gateway.igw.id }
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.igw.id
+  }
   tags = { Name = "sd-direct-rt" }
 }
 
@@ -45,29 +52,33 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 }
 
-# ── Security Group ────────────────────────────────────────────────────────────
 resource "aws_security_group" "sd" {
   name   = "sd-direct-sg"
   vpc_id = aws_vpc.main.id
 
   ingress {
     description = "SSH"
-    from_port = 22; to_port = 22; protocol = "tcp"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
   ingress {
     description = "Trafico interno"
-    from_port = 0; to_port = 0; protocol = "-1"
-    self = true
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    self        = true
   }
   egress {
-    from_port = 0; to_port = 0; protocol = "-1"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
   tags = { Name = "sd-direct-sg" }
 }
 
-# ── SSH Key ───────────────────────────────────────────────────────────────────
 resource "tls_private_key" "sd" {
   algorithm = "RSA"
   rsa_bits  = 4096
