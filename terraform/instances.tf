@@ -30,25 +30,13 @@ locals {
   # Pyro5 Name Server con systemd
   nameserver_setup = <<-EOF
     #!/bin/bash
-    set -e
     yum update -y
     yum install -y python3 python3-pip
     pip3 install --quiet Pyro5 serpent
 
-    cat > /etc/systemd/system/pyro-ns.service <<'UNIT'
-    [Unit]
-    Description=Pyro5 Name Server
-    After=network.target
+    PYTHON=$(which python3)
 
-    [Service]
-    ExecStart=/usr/local/bin/python3 -m Pyro5.nameserver --host 0.0.0.0 --port 9090
-    Restart=always
-    RestartSec=3
-    User=ec2-user
-
-    [Install]
-    WantedBy=multi-user.target
-    UNIT
+    printf '[Unit]\nDescription=Pyro5 Name Server\nAfter=network.target\n\n[Service]\nExecStart=%s -m Pyro5.nameserver --host 0.0.0.0 --port 9090\nRestart=always\nRestartSec=5\nUser=ec2-user\n\n[Install]\nWantedBy=multi-user.target\n' "$PYTHON" > /etc/systemd/system/pyro-ns.service
 
     systemctl daemon-reload
     systemctl enable pyro-ns
