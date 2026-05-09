@@ -71,8 +71,9 @@ resource "null_resource" "lb_setup" {
     inline = [
       "cloud-init status --wait 2>/dev/null || true",
       "timeout 300 bash -c 'until python3 -c \"import Pyro5\" 2>/dev/null; do sleep 5; done' || true",
-      "timeout 300 bash -c 'until python3 -c \"import Pyro5.api; ns=Pyro5.api.locate_ns(host=\\'${aws_instance.nameserver.private_ip}\\',port=9090); ws=[k for k in ns.list() if k.startswith(\\'worker_\\')]; assert len(ws)>=${var.num_workers}\" 2>/dev/null; do echo Esperando workers...; sleep 5; done' || true",
-      "echo '=== Workers registrados ==='",
+      "echo 'Esperando 30s a que los workers se registren en el NameServer...'",
+      "sleep 30",
+      "echo '=== Listo para arrancar LB ==='",
     ]
   }
 
