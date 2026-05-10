@@ -75,10 +75,10 @@ foreach ($r in ($results | Sort-Object Name)) {
     $s = Parse-WorkerStats $r.Log
 
     foreach ($cola in @("ticket_unnumbered", "ticket_numbered")) {
-        $ok  = if ($s["${cola}_ok"])  { $s["${cola}_ok"]  } else { "-" }
-        $ko  = if ($s["${cola}_ko"])  { $s["${cola}_ko"]  } else { "-" }
-        $tot = if ($s["${cola}_tot"]) { $s["${cola}_tot"] } else { "-" }
-        $thr = if ($s["${cola}_thr"]) { $s["${cola}_thr"] } else { "-" }
+        $ok  = if ($null -ne $s["${cola}_ok"])  { $s["${cola}_ok"]  } else { "-" }
+        $ko  = if ($null -ne $s["${cola}_ko"])  { $s["${cola}_ko"]  } else { "-" }
+        $tot = if ($null -ne $s["${cola}_tot"]) { $s["${cola}_tot"] } else { "-" }
+        $thr = if ($null -ne $s["${cola}_thr"]) { $s["${cola}_thr"] } else { "-" }
         $tableRows += [PSCustomObject]@{
             Worker     = $r.Name
             Cola       = $cola -replace "ticket_", ""
