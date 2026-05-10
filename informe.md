@@ -124,34 +124,32 @@ Los benchmarks se han ejecutado con 1, 2, 3 y 6 workers para ambas arquitecturas
 
 ### Gráficas
 
-**Figura 1 — Throughput comparativo por arquitectura y modo**
+**Figura 1 — Throughput vs. número de workers**
+
+Muestra cómo evoluciona el rendimiento al añadir workers en las cuatro combinaciones (arquitectura × modo). La arquitectura indirecta escala de forma casi lineal mientras que la directa se estanca por la saturación del Load Balancer.
 
 ```
-[ PEGAR AQUÍ: grafica_throughput.png ]
-```
-
----
-
-**Figura 2 — Éxitos vs. Fallos por configuración**
-
-```
-[ PEGAR AQUÍ: grafica_exitos_fallos.png ]
+[ PEGAR AQUÍ: grafica_throughput_vs_workers.png ]
 ```
 
 ---
 
-**Figura 3 — Escalabilidad: throughput vs. número de workers**
+**Figura 2 — Direct vs. Indirect: comparativa de throughput**
+
+Comparación directa entre ambas arquitecturas para cada número de workers, separada por modo (unnumbered y numbered). Se aprecia claramente la ventaja de la arquitectura indirecta a medida que aumenta el número de workers.
 
 ```
-[ PEGAR AQUÍ: grafica_escalabilidad.png ]
+[ PEGAR AQUÍ: grafica_direct_vs_indirect.png ]
 ```
 
 ---
 
-**Figura 4 — Distribución de carga entre workers**
+**Figura 3 — Numbered vs. Unnumbered: comparativa de throughput**
+
+Comparación entre los dos modelos de venta para cada arquitectura. El modo unnumbered obtiene siempre mayor throughput que el numbered debido a la menor contención en Redis (INCR atómico vs. SETNX con alta tasa de colisiones).
 
 ```
-[ PEGAR AQUÍ: grafica_carga_workers.png ]
+[ PEGAR AQUÍ: grafica_numbered_vs_unnumbered.png ]
 ```
 
 ---
