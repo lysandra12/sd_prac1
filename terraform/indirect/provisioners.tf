@@ -1,6 +1,6 @@
 resource "null_resource" "worker_setup" {
   count      = var.num_workers
-  depends_on = [aws_instance.worker, aws_instance.redis, aws_instance.rabbitmq]
+  depends_on = [aws_instance.worker, aws_instance.infra]
 
   connection {
     type        = "ssh"
@@ -14,8 +14,8 @@ resource "null_resource" "worker_setup" {
     inline = [
       "cloud-init status --wait 2>/dev/null || true",
       "timeout 300 bash -c 'until python3 -c \"import redis, pika\" 2>/dev/null; do sleep 5; done' || true",
-      "timeout 120 bash -c 'until redis-cli -h ${aws_instance.redis.private_ip} ping 2>/dev/null | grep -q PONG; do sleep 5; done' || true",
-      "timeout 300 bash -c 'until bash -c \"echo >/dev/tcp/${aws_instance.rabbitmq.private_ip}/5672\" 2>/dev/null; do echo Esperando RabbitMQ...; sleep 5; done' || true",
+      "timeout 120 bash -c 'until redis-cli -h ${aws_instance.infra.private_ip} ping 2>/dev/null | grep -q PONG; do sleep 5; done' || true",
+      "timeout 300 bash -c 'until bash -c \"echo >/dev/tcp/${aws_instance.infra.private_ip}/5672\" 2>/dev/null; do echo Esperando RabbitMQ...; sleep 5; done' || true",
       "echo '=== Entorno listo ==='",
     ]
   }
@@ -26,7 +26,7 @@ resource "null_resource" "worker_setup" {
   }
 
   provisioner "file" {
-    content     = "export REDIS_HOST=${aws_instance.redis.private_ip}\nexport RABBIT_HOST=${aws_instance.rabbitmq.private_ip}\n"
+    content     = "export REDIS_HOST=${aws_instance.infra.private_ip}\nexport RABBIT_HOST=${aws_instance.infra.private_ip}\n"
     destination = "/home/ec2-user/sd_env.sh"
   }
 
@@ -38,8 +38,8 @@ resource "null_resource" "worker_setup" {
       "Description=SD Indirect Worker ${count.index + 1}",
       "After=network.target",
       "[Service]",
-      "Environment=REDIS_HOST=${aws_instance.redis.private_ip}",
-      "Environment=RABBIT_HOST=${aws_instance.rabbitmq.private_ip}",
+      "Environment=REDIS_HOST=${aws_instance.infra.private_ip}",
+      "Environment=RABBIT_HOST=${aws_instance.infra.private_ip}",
       "ExecStart=$PYTHON /home/ec2-user/indirect/worker.py",
       "Restart=on-failure",
       "RestartSec=5",
@@ -79,7 +79,7 @@ resource "null_resource" "client_setup" {
   }
 
   provisioner "file" {
-    content     = "export REDIS_HOST=${aws_instance.redis.private_ip}\nexport RABBIT_HOST=${aws_instance.rabbitmq.private_ip}\n"
+    content     = "export REDIS_HOST=${aws_instance.infra.private_ip}\nexport RABBIT_HOST=${aws_instance.infra.private_ip}\n"
     destination = "/home/ec2-user/sd_env.sh"
   }
 

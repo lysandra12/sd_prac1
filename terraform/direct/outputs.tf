@@ -1,8 +1,7 @@
 output "ips" {
   value = merge(
     {
-      redis        = aws_instance.redis.public_ip
-      nameserver   = aws_instance.nameserver.public_ip
+      infra        = aws_instance.infra.public_ip
       loadbalancer = aws_instance.loadbalancer.public_ip
       client       = aws_instance.client.public_ip
     },
@@ -14,7 +13,7 @@ output "siguiente_paso" {
   value = <<-MSG
 
     ============================================================
-     DIRECT listo — Redis, NameServer, Workers y LB arrancados
+     DIRECT listo — Infra (Redis+NS), Workers y LB arrancados
     ============================================================
 
      Entra al cliente y ejecuta el benchmark:

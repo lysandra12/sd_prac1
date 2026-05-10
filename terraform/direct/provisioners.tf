@@ -1,6 +1,6 @@
 resource "null_resource" "worker_setup" {
   count      = var.num_workers
-  depends_on = [aws_instance.worker, aws_instance.nameserver, aws_instance.redis]
+  depends_on = [aws_instance.worker, aws_instance.infra]
 
   connection {
     type        = "ssh"
@@ -14,8 +14,8 @@ resource "null_resource" "worker_setup" {
     inline = [
       "cloud-init status --wait 2>/dev/null || true",
       "timeout 300 bash -c 'until python3 -c \"import Pyro5, redis\" 2>/dev/null; do sleep 5; done' || true",
-      "timeout 300 bash -c 'until bash -c \"echo >/dev/tcp/${aws_instance.nameserver.private_ip}/9090\" 2>/dev/null; do echo Esperando NS...; sleep 5; done' || true",
-      "timeout 120 bash -c 'until redis-cli -h ${aws_instance.redis.private_ip} ping 2>/dev/null | grep -q PONG; do sleep 5; done' || true",
+      "timeout 300 bash -c 'until bash -c \"echo >/dev/tcp/${aws_instance.infra.private_ip}/9090\" 2>/dev/null; do echo Esperando NS...; sleep 5; done' || true",
+      "timeout 120 bash -c 'until redis-cli -h ${aws_instance.infra.private_ip} ping 2>/dev/null | grep -q PONG; do sleep 5; done' || true",
       "echo '=== Entorno listo ==='",
     ]
   }
@@ -26,7 +26,7 @@ resource "null_resource" "worker_setup" {
   }
 
   provisioner "file" {
-    content     = "export REDIS_HOST=${aws_instance.redis.private_ip}\nexport PYRO_NS_HOST=${aws_instance.nameserver.private_ip}\nexport WORKER_HOST=${aws_instance.worker[count.index].private_ip}\n"
+    content     = "export REDIS_HOST=${aws_instance.infra.private_ip}\nexport PYRO_NS_HOST=${aws_instance.infra.private_ip}\nexport WORKER_HOST=${aws_instance.worker[count.index].private_ip}\n"
     destination = "/home/ec2-user/sd_env.sh"
   }
 
@@ -38,8 +38,8 @@ resource "null_resource" "worker_setup" {
       "Description=SD Direct Worker ${count.index + 1}",
       "After=network.target",
       "[Service]",
-      "Environment=REDIS_HOST=${aws_instance.redis.private_ip}",
-      "Environment=PYRO_NS_HOST=${aws_instance.nameserver.private_ip}",
+      "Environment=REDIS_HOST=${aws_instance.infra.private_ip}",
+      "Environment=PYRO_NS_HOST=${aws_instance.infra.private_ip}",
       "Environment=WORKER_HOST=${aws_instance.worker[count.index].private_ip}",
       "ExecStart=$PYTHON /home/ec2-user/direct/worker.py --id ${count.index + 1} --host ${aws_instance.worker[count.index].private_ip}",
       "Restart=on-failure",
@@ -90,7 +90,7 @@ resource "null_resource" "lb_setup" {
       "Description=SD Load Balancer",
       "After=network.target",
       "[Service]",
-      "Environment=PYRO_NS_HOST=${aws_instance.nameserver.private_ip}",
+      "Environment=PYRO_NS_HOST=${aws_instance.infra.private_ip}",
       "Environment=LB_HOST=${aws_instance.loadbalancer.private_ip}",
       "ExecStart=$PYTHON /home/ec2-user/direct/load_balancer.py",
       "Restart=on-failure",
@@ -131,7 +131,7 @@ resource "null_resource" "client_setup" {
   }
 
   provisioner "file" {
-    content     = "export REDIS_HOST=${aws_instance.redis.private_ip}\nexport PYRO_NS_HOST=${aws_instance.nameserver.private_ip}\n"
+    content     = "export REDIS_HOST=${aws_instance.infra.private_ip}\nexport PYRO_NS_HOST=${aws_instance.infra.private_ip}\n"
     destination = "/home/ec2-user/sd_env.sh"
   }
 

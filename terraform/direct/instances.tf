@@ -7,20 +7,17 @@ locals {
     echo "deps OK" >> /var/log/sd-setup.log
   EOF
 
-  redis_setup = <<-EOF
+  # Redis + Pyro5 NameServer en la misma instancia
+  infra_setup = <<-EOF
     #!/bin/bash
     yum update -y
+    # Redis
     amazon-linux-extras enable redis6 -y
     yum install -y redis
     sed -i 's/^bind 127.0.0.1.*/bind 0.0.0.0/' /etc/redis/redis.conf
     sed -i 's/^protected-mode yes/protected-mode no/' /etc/redis/redis.conf
     systemctl enable redis && systemctl start redis
-    echo "Redis OK" >> /var/log/sd-setup.log
-  EOF
-
-  nameserver_setup = <<-EOF
-    #!/bin/bash
-    yum update -y
+    # Pyro5 NameServer
     yum install -y python3 python3-pip
     pip3 install --quiet Pyro5 serpent
     PYTHON=$(which python3)
@@ -28,28 +25,19 @@ locals {
       > /etc/systemd/system/pyro-ns.service
     systemctl daemon-reload
     systemctl enable pyro-ns && systemctl start pyro-ns
-    echo "NameServer OK" >> /var/log/sd-setup.log
+    echo "Infra OK" >> /var/log/sd-setup.log
   EOF
 }
 
-resource "aws_instance" "redis" {
+# Una sola instancia para Redis + NameServer
+resource "aws_instance" "infra" {
   ami                    = data.aws_ami.amzn2.id
   instance_type          = var.instance_type
   subnet_id              = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.sd.id]
   key_name               = aws_key_pair.sd.key_name
-  user_data              = local.redis_setup
-  tags = { Name = "direct-redis" }
-}
-
-resource "aws_instance" "nameserver" {
-  ami                    = data.aws_ami.amzn2.id
-  instance_type          = var.instance_type
-  subnet_id              = aws_subnet.public.id
-  vpc_security_group_ids = [aws_security_group.sd.id]
-  key_name               = aws_key_pair.sd.key_name
-  user_data              = local.nameserver_setup
-  tags = { Name = "direct-nameserver" }
+  user_data              = local.infra_setup
+  tags = { Name = "direct-infra" }
 }
 
 resource "aws_instance" "loadbalancer" {
