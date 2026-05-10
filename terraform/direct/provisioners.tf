@@ -142,9 +142,7 @@ resource "null_resource" "client_setup" {
       source ~/sd_env.sh
       MODO=$${1:-unnumbered}
       echo "====== Direct / $MODO ======"
-      redis-cli -h $REDIS_HOST FLUSHDB
-      redis-cli -h $REDIS_HOST SET total_sold 0
-      echo "Redis reseteado"
+      python3 -c "import redis; r=redis.Redis(host='$REDIS_HOST'); r.flushdb(); r.set('total_sold',0); print('Redis reseteado')"
       cd ~/direct && python3 cliente.py --modo $MODO
     SCRIPT
     destination = "/home/ec2-user/benchmark.sh"
