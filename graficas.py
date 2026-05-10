@@ -13,12 +13,12 @@ datos = {
     "direct_numbered_1w":    {"throughput": 269.09, "success": 20000, "fail": 5997, "elapsed": 96.612,
                                "workers": [{"id":1,"throughput":269.12,"success":20000,"fail":5997}]},
 
-    "direct_unnumbered_2w":  {"throughput": 346.16, "success": 14395, "fail": 0,    "elapsed": 41.585,
-                               "workers": [{"id":1,"throughput":173.14,"success":7198,"fail":0},
-                                           {"id":2,"throughput":173.13,"success":7198,"fail":0}]},
-    "direct_numbered_2w":    {"throughput": 289.53, "success": 20000, "fail": 5997, "elapsed": 89.789,
-                               "workers": [{"id":1,"throughput":144.79,"success":9998,"fail":3000},
-                                           {"id":2,"throughput":144.78,"success":10002,"fail":2997}]},
+    "direct_unnumbered_2w":  {"throughput": 287.97, "success": 20000, "fail": 0, "elapsed": 69.452,
+                               "workers": [{"id":1,"throughput":144.01,"success":10000,"fail":0},
+                                           {"id":2,"throughput":144.02,"success":10000,"fail":0}]},
+    "direct_numbered_2w":    {"throughput": 251.14, "success": 20000, "fail": 5997, "elapsed": 103.517,
+                               "workers": [{"id":1,"throughput":125.58,"success":10002,"fail":2997},
+                                           {"id":2,"throughput":125.58,"success":9998, "fail":3000}]},
 
     "direct_unnumbered_3w":  {"throughput": 286.10, "success": 20000, "fail": 0, "elapsed": 69.906,
                                "workers": [{"id":1,"throughput":95.39,"success":6667,"fail":0},

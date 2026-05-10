@@ -109,7 +109,7 @@ Los benchmarks se han ejecutado con 1, 2, 3 y 6 workers para ambas arquitecturas
 | Workers | Unnumbered | Numbered |
 |---------|-----------|---------|
 | 1 | 328,72 | 269,09 |
-| 2 | 346,16 | 289,53 |
+| 2 | 287,97 | 251,14 |
 | 3 | 286,10 | 238,08 |
 | 6 | 279,56 | 248,61 |
 
