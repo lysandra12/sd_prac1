@@ -80,7 +80,7 @@ terraform apply -var="num_workers=N"
 Ambas arquitecturas utilizan **Redis** como fuente de verdad compartida:
 
 - **Numbered**: operación atómica `SETNX seat:<id> <client_id>`. Solo el primer cliente que ejecuta la operación obtiene el asiento; los demás reciben un fallo.
-- **Unnumbered**: operación atómica `INCR total_sold`. Si el valor resultante supera el aforo, se revierte con `DECR`. Garantiza que nunca se venden más entradas de las disponibles.
+- **Unnumbered**: operación atómica `INCR total_sold`. Si el valor resultante supera el aforo, la petición se rechaza y se deshace el incremento con `DECR` para restaurar el contador. Esto garantiza que el contador refleja siempre las entradas realmente vendidas y nunca se supera el aforo.
 
 Estas operaciones son atómicas en Redis por diseño, lo que elimina condiciones de carrera sin necesidad de bloqueos a nivel de aplicación.
 
@@ -128,19 +128,14 @@ Los benchmarks se han ejecutado con 1, 2, 3 y 6 workers para ambas arquitecturas
 
 Muestra cómo evoluciona el rendimiento al añadir workers en las cuatro combinaciones (arquitectura × modo). La arquitectura indirecta escala de forma casi lineal mientras que la directa se estanca por la saturación del Load Balancer.
 
-```
-[ PEGAR AQUÍ: grafica_throughput_vs_workers.png ]
-```
-
+![alt text](image-1.png)
 ---
 
 **Figura 2 — Direct vs. Indirect: comparativa de throughput**
 
 Comparación directa entre ambas arquitecturas para cada número de workers, separada por modo (unnumbered y numbered). Se aprecia claramente la ventaja de la arquitectura indirecta a medida que aumenta el número de workers.
 
-```
-[ PEGAR AQUÍ: grafica_direct_vs_indirect.png ]
-```
+![alt text](image-2.png)
 
 ---
 
@@ -148,9 +143,7 @@ Comparación directa entre ambas arquitecturas para cada número de workers, sep
 
 Comparación entre los dos modelos de venta para cada arquitectura. El modo unnumbered obtiene siempre mayor throughput que el numbered debido a la menor contención en Redis (INCR atómico vs. SETNX con alta tasa de colisiones).
 
-```
-[ PEGAR AQUÍ: grafica_numbered_vs_unnumbered.png ]
-```
+![alt text](image-3.png)
 
 ---
 
