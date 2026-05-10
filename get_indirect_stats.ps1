@@ -52,19 +52,15 @@ $jobs | Remove-Job
 # 4. Parsear stats y mostrar tabla
 function Parse-WorkerStats($log) {
     $stats = @{}
-    $inResumen = $false
-    $cola = ""
+    $cola  = ""
     foreach ($line in $log) {
-        if ($line -match "RESUMEN WORKER.*cola: (\S+)") {
-            $cola = $matches[1]; $inResumen = $true; continue
-        }
-        if ($inResumen) {
-            if ($line -match "Exitos\s*:\s*(\d+)")    { $stats["${cola}_ok"]  = [int]$matches[1] }
-            if ($line -match "Fallos\s*:\s*(\d+)")    { $stats["${cola}_ko"]  = [int]$matches[1] }
-            if ($line -match "Total ops\s*:\s*(\d+)") { $stats["${cola}_tot"] = [int]$matches[1] }
-            if ($line -match "Throughput:\s*([\d.]+)") { $stats["${cola}_thr"] = [double]$matches[1] }
-            if ($line -match "={10,}") { $inResumen = $false }
-        }
+        # Detectar cola (puede tener caracteres raros por encoding del em-dash)
+        if ($line -match "cola:\s*(ticket_\w+)")       { $cola = $matches[1] }
+        if (-not $cola) { continue }
+        if ($line -match "Exitos\s*:\s*(\d+)")         { $stats["${cola}_ok"]  = [int]$matches[1] }
+        if ($line -match "Fallos\s*:\s*(\d+)")         { $stats["${cola}_ko"]  = [int]$matches[1] }
+        if ($line -match "Total ops\s*:\s*(\d+)")      { $stats["${cola}_tot"] = [int]$matches[1] }
+        if ($line -match "Throughput:\s*([\d.]+)")     { $stats["${cola}_thr"] = [double]$matches[1] }
     }
     return $stats
 }
