@@ -7,31 +7,38 @@ import numpy as np
 
 datos = {
     # --- DIRECT ---
+    # --- DIRECT ---
+    "direct_unnumbered_1w":  {"throughput": 0, "success": 0, "fail": 0, "elapsed": 0, "workers": []},
+    "direct_numbered_1w":    {"throughput": 0, "success": 0, "fail": 0, "elapsed": 0, "workers": []},
+
     "direct_unnumbered_2w":  {"throughput": 346.16, "success": 14395, "fail": 0,    "elapsed": 41.585,
                                "workers": [{"id":1,"throughput":173.14,"success":7198,"fail":0},
                                            {"id":2,"throughput":173.13,"success":7198,"fail":0}]},
-    "direct_numbered_2w":    {"throughput": 292.61, "success": 20000, "fail": 5997, "elapsed": 88.844,
-                               "workers": [{"id":1,"throughput":146.31,"success":10000,"fail":2999},
-                                           {"id":2,"throughput":146.30,"success":10000,"fail":2998}]},
+    "direct_numbered_2w":    {"throughput": 289.53, "success": 20000, "fail": 5997, "elapsed": 89.789,
+                               "workers": [{"id":1,"throughput":144.79,"success":9998,"fail":3000},
+                                           {"id":2,"throughput":144.78,"success":10002,"fail":2997}]},
 
-    "direct_unnumbered_10w": {"throughput": 0, "success": 0, "fail": 0, "elapsed": 0, "workers": []},
-    "direct_numbered_10w":   {"throughput": 0, "success": 0, "fail": 0, "elapsed": 0, "workers": []},
+    "direct_unnumbered_3w":  {"throughput": 0, "success": 0, "fail": 0, "elapsed": 0, "workers": []},
+    "direct_numbered_3w":    {"throughput": 0, "success": 0, "fail": 0, "elapsed": 0, "workers": []},
 
-    "direct_unnumbered_50w": {"throughput": 0, "success": 0, "fail": 0, "elapsed": 0, "workers": []},
-    "direct_numbered_50w":   {"throughput": 0, "success": 0, "fail": 0, "elapsed": 0, "workers": []},
+    "direct_unnumbered_6w":  {"throughput": 0, "success": 0, "fail": 0, "elapsed": 0, "workers": []},
+    "direct_numbered_6w":    {"throughput": 0, "success": 0, "fail": 0, "elapsed": 0, "workers": []},
 
     # --- INDIRECT ---
+    "indirect_unnumbered_1w":  {"throughput": 0, "success": 0, "fail": 0, "elapsed": 0, "workers": []},
+    "indirect_numbered_1w":    {"throughput": 0, "success": 0, "fail": 0, "elapsed": 0, "workers": []},
+
     "indirect_unnumbered_2w":  {"throughput": 0, "success": 0, "fail": 0, "elapsed": 0, "workers": []},
     "indirect_numbered_2w":    {"throughput": 0, "success": 0, "fail": 0, "elapsed": 0, "workers": []},
 
-    "indirect_unnumbered_10w": {"throughput": 0, "success": 0, "fail": 0, "elapsed": 0, "workers": []},
-    "indirect_numbered_10w":   {"throughput": 0, "success": 0, "fail": 0, "elapsed": 0, "workers": []},
+    "indirect_unnumbered_3w":  {"throughput": 0, "success": 0, "fail": 0, "elapsed": 0, "workers": []},
+    "indirect_numbered_3w":    {"throughput": 0, "success": 0, "fail": 0, "elapsed": 0, "workers": []},
 
-    "indirect_unnumbered_50w": {"throughput": 0, "success": 0, "fail": 0, "elapsed": 0, "workers": []},
-    "indirect_numbered_50w":   {"throughput": 0, "success": 0, "fail": 0, "elapsed": 0, "workers": []},
+    "indirect_unnumbered_6w":  {"throughput": 0, "success": 0, "fail": 0, "elapsed": 0, "workers": []},
+    "indirect_numbered_6w":    {"throughput": 0, "success": 0, "fail": 0, "elapsed": 0, "workers": []},
 }
 
-WORKERS = [2, 10, 50]
+WORKERS = [1, 2, 3, 6]
 MODOS   = ["unnumbered", "numbered"]
 ARCHS   = ["direct", "indirect"]
 
