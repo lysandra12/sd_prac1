@@ -6,9 +6,11 @@ env.sh
 upload.sh
 ssh.sh
 
-# Estado de Terraform (contiene datos sensibles)
-terraform/.terraform/
-terraform/.terraform.lock.hcl
-terraform/terraform.tfstate
-terraform/terraform.tfstate.backup
-terraform/*.tfplan
+# Estado y providers de Terraform
+**/.terraform/
+**/.terraform.lock.hcl
+**/terraform.tfstate
+**/terraform.tfstate.backup
+**/*.tfplan
+sd-direct-key.pem
+sd-indirect-key.pem
