@@ -60,3 +60,19 @@ foreach ($r in $results) {
 
 Write-Host ""
 Write-Host "Todos los workers reiniciados." -ForegroundColor Green
+
+# Reiniciar el LB (solo en direct, indirect no tiene LB)
+if ($arch -eq "direct") {
+    $lbIp = $ipsJson.PSObject.Properties | Where-Object { $_.Name -eq "loadbalancer" } | Select-Object -ExpandProperty Value
+    if ($lbIp) {
+        Write-Host ""
+        Write-Host "Reiniciando Load Balancer ($lbIp)..." -ForegroundColor Cyan
+        # Esperar a que los workers se registren en el NameServer
+        Start-Sleep -Seconds 10
+        $lbResult = ssh -i $keyFile -o StrictHostKeyChecking=no -o ConnectTimeout=10 `
+            "ec2-user@$lbIp" "sudo systemctl restart sd-lb && echo OK"
+        $status = if ($lbResult -match "OK") { "OK" } else { "ERROR" }
+        $color  = if ($status -eq "OK") { "Green" } else { "Red" }
+        Write-Host "  Load Balancer -> $status" -ForegroundColor $color
+    }
+}

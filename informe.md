@@ -68,6 +68,7 @@ terraform apply -var="num_workers=N"
 | Latencia por petición | Alta (2 saltos de red: cliente→LB→worker) | Baja para el cliente (solo publica) |
 | Throughput | Limitado por el LB | Escala con el número de workers |
 | Tolerancia a fallos | Si el LB cae, el sistema falla | Si un worker cae, otro toma sus mensajes |
+![alt text](image.png)  ![alt text](image-4.png)
 
 ### Estrategia de balanceo de carga
 
@@ -234,23 +235,4 @@ bash ~/benchmark.sh numbered
 
 ```bash
 terraform destroy
-```
-
----
-
-## Código fuente
-
-```
-prac1_sd/
-├── direct/
-│   ├── worker.py          # Worker Pyro5
-│   ├── load_balancer.py   # Load Balancer round-robin
-│   └── cliente.py         # Cliente benchmark
-├── indirect/
-│   ├── worker.py          # Worker RabbitMQ
-│   └── cliente.py         # Cliente benchmark
-├── terraform/
-│   ├── direct/            # Infraestructura AWS arquitectura directa
-│   └── indirect/          # Infraestructura AWS arquitectura indirecta
-└── graficas.py            # Generación de gráficas
 ```
